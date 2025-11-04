@@ -6,21 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check-project": "node -e \"const fs=require('fs'); const dirs=['app','pages']; dirs.forEach(d=>console.log(d+': '+(fs.existsSync(d)?'present':'missing'))); console.log('Top-level files:', fs.readdirSync('.').filter(f=>!['node_modules','.git'].includes(f)).join(', '));\""
   },
   "dependencies": {
+    "next": "16.0.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "next": "16.0.1"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.1",
+    "tailwindcss": "^4",
     "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.1"
+    "@types/react-dom": "^19"
   }
 }
