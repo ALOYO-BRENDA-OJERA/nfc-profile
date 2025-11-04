@@ -1,4 +1,57 @@
 (function () {
+	// ensure a basic UI exists if index.html wasn't served / deployed
+	function ensureUI() {
+		if (document.getElementById('profile-app')) return;
+
+		// minimal styles
+		const css = `
+#profile-app{font-family:system-ui, -apple-system, "Segoe UI", Roboto, Arial; max-width:720px;margin:24px auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 6px 18px rgba(30,40,50,0.06)}
+#profile-app h1{margin:0 0 12px}
+#profile-app label{display:block;margin:10px 0}
+#profile-app input{width:100%;padding:8px 10px;border:1px solid #d0d7de;border-radius:6px;box-sizing:border-box}
+#profile-app .buttons{display:flex;gap:8px;margin-top:12px}
+#profile-app button{padding:8px 12px;border-radius:6px;border:none;background:#0366d6;color:#fff;cursor:pointer}
+#profile-app button.clear{background:#6a737d}
+#profile-app pre{background:#0f1720;color:#cbd5e1;padding:12px;border-radius:6px;max-height:220px;overflow:auto}
+`;
+
+		const style = document.createElement('style');
+		style.textContent = css;
+		document.head.appendChild(style);
+
+		// UI markup
+		const container = document.createElement('main');
+		container.id = 'profile-app';
+		container.innerHTML = `
+<h1>NFC Profile — Read & Write</h1>
+<form id="profileForm" onsubmit="return false;">
+	<label>Name
+		<input id="name" type="text" placeholder="Full name" />
+	</label>
+	<label>Email
+		<input id="email" type="email" placeholder="you@example.com" />
+	</label>
+	<label>Phone
+		<input id="phone" type="tel" placeholder="+1 555 5555" />
+	</label>
+	<div class="buttons">
+		<button id="writeBtn" type="button">Write to tag</button>
+		<button id="readBtn" type="button">Read from tag</button>
+		<button id="clearBtn" type="button" class="clear">Clear</button>
+	</div>
+</form>
+<section id="log">
+	<h2>Status</h2>
+	<pre id="status">Ready.</pre>
+</section>
+`;
+		document.body.innerHTML = ''; // clear any blank page content
+		document.body.appendChild(container);
+	}
+
+	// create UI if needed before querying elements
+	ensureUI();
+
 	const nameEl = document.getElementById('name');
 	const emailEl = document.getElementById('email');
 	const phoneEl = document.getElementById('phone');
