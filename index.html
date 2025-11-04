@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>NFC Profile — Read / Write</title>
+	<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+	<main>
+		<h1>NFC Profile — Read & Write</h1>
+
+		<form id="profileForm" onsubmit="return false;">
+			<label>
+				Name
+				<input id="name" type="text" placeholder="Full name" />
+			</label>
+
+			<label>
+				Email
+				<input id="email" type="email" placeholder="you@example.com" />
+			</label>
+
+			<label>
+				Phone
+				<input id="phone" type="tel" placeholder="+1 555 5555" />
+			</label>
+
+			<div class="buttons">
+				<button id="writeBtn" type="button">Write to tag</button>
+				<button id="readBtn" type="button">Read from tag</button>
+				<button id="clearBtn" type="button">Clear</button>
+			</div>
+		</form>
+
+		<section id="log">
+			<h2>Status</h2>
+			<pre id="status">Ready.</pre>
+		</section>
+	</main>
+
+	<script src="app.js"></script>
+</body>
+</html>

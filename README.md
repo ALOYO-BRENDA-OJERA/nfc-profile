@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# NFC Profile — Read/Write (no DB)
+
+Run:
+
+- Serve the folder on localhost (secure context). Examples:
+  - npx serve . -l 3000
+  - python -m http.server 3000
+- Open http://localhost:3000 in a Chromium-based browser.
+
+Notes:
+
+- Web NFC currently works best in Chrome on Android. Some desktop Chromium builds may allow it with flags.
+- Touch a tag to write or read when prompted. Data is stored as JSON on the tag (application/json).
+- No backend or database used — data is only in UI and stored on NFC tags.
