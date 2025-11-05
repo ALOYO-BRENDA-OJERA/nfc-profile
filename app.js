@@ -530,33 +530,38 @@ textarea{
 		try {
 			const ndef = new NDEFReader();
 			setStatus('Touch an NFC tag to write...');
+			let writeError = null;
+			// If the profile is valid JSON, write as MIME and text
 			const json = JSON.stringify(profile);
 			try {
 				await ndef.write({
-					records: [{
-						recordType: 'mime',
-						mediaType: 'application/json',
-						data: new TextEncoder().encode(json)
-					}]
+					records: [
+						{
+							recordType: 'mime',
+							mediaType: 'application/json',
+							data: new TextEncoder().encode(json)
+						},
+						{
+							recordType: 'text',
+							data: json
+					 }
+					]
 				});
-				setStatus('Successfully wrote profile to tag.');
+				setStatus('Successfully wrote profile to tag (as both JSON and text).');
+				return;
 			} catch (mimeError) {
-				// If push is cancelled due to a network push request, show a friendly message
-				if (mimeError && mimeError.message && mimeError.message.includes('push is cancelled')) {
-					setStatus('Write failed: Another NFC operation is active. Please close any open NFC scan and try again.');
-					return;
-				}
-				try {
-					await ndef.write({ records: [{ recordType: 'text', data: json }] });
-					setStatus('Wrote profile as text record (fallback).');
-				} catch (textError) {
-					if (textError && textError.message && textError.message.includes('push is cancelled')) {
-						setStatus('Write failed: Another NFC operation is active. Please close any open NFC scan and try again.');
-						return;
-					}
-					setStatus('Write failed: ' + (textError && textError.message || textError));
-				}
+				writeError = mimeError;
 			}
+			// Try fallback to text record only
+			try {
+				await ndef.write({ records: [{ recordType: 'text', data: json }] });
+				setStatus('Wrote profile as text record only.');
+				return;
+			} catch (textError) {
+				writeError = textError;
+			}
+			// If both fail, show the actual error
+			setStatus('Write failed: ' + (writeError && writeError.message ? writeError.message : JSON.stringify(writeError)));
 		} catch (err) {
 			setStatus('Error while writing: ' + (err && err.message || err));
 		}
@@ -585,18 +590,20 @@ textarea{
 				const message = event.message;
 				let parsed = null;
 				let rawText = null;
+				let rawDump = [];
 
 				for (const record of message.records) {
 					try {
-						// Try to decode as JSON from MIME or text
 						if (record.recordType === 'mime' && record.mediaType === 'application/json') {
 							const textDecoder = new TextDecoder();
 							const data = record.data instanceof ArrayBuffer ? textDecoder.decode(record.data) : textDecoder.decode(new Uint8Array(record.data));
+							rawDump.push(data);
 							parsed = JSON.parse(data);
 							break;
 						} else if (record.recordType === 'text') {
 							const textDecoder = new TextDecoder(record.encoding || 'utf-8');
 							const data = textDecoder.decode(record.data);
+							rawDump.push(data);
 							try {
 								parsed = JSON.parse(data);
 								break;
@@ -605,6 +612,7 @@ textarea{
 							}
 						} else if (record.recordType === 'unknown' && record.data) {
 							const data = new TextDecoder().decode(record.data);
+							rawDump.push(data);
 							try {
 								parsed = JSON.parse(data);
 								break;
@@ -613,7 +621,7 @@ textarea{
 							}
 						}
 					} catch (e) {
-						// ignore and continue
+						rawDump.push('[Unreadable record]');
 					}
 				}
 
@@ -623,7 +631,9 @@ textarea{
 				} else if (rawText) {
 					setStatus('Tag contains text (not JSON):\n' + rawText);
 				} else {
-					setStatus('No JSON or text profile found on this tag. Raw records:\n' +
+					setStatus('No JSON or text profile found on this tag. Raw record dump:\n' +
+						rawDump.join('\n') +
+						'\nRaw records:\n' +
 						JSON.stringify(message.records.map(r => ({
 							type: r.recordType,
 							mediaType: r.mediaType,
