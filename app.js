@@ -416,100 +416,12 @@ textarea{
 	const noImage = document.getElementById('noImage');
 
 	let currentImageData = null;
-	let scanActive = false;
-	let ndefScanInstance = null;
+  let scanActive = false;
 
-	// Only allow one NFC operation at a time (scan or write)
-	let nfcBusy = false;
-
-	// Add toast functionality to setStatus
-	function setStatus(msg) {
-		const time = new Date().toLocaleTimeString();
-		statusEl.textContent = `[${time}] ${msg}\n` + statusEl.textContent;
-		
-		// Show toast on mobile
-		const toast = document.querySelector('.toast');
-		if (toast) toast.remove();
-		
-		const newToast = document.createElement('div');
-		newToast.className = 'toast';
-		newToast.textContent = msg;
-		document.body.appendChild(newToast);
-		
-		setTimeout(() => newToast.remove(), 3000);
-	}
-
-	function getProfileFromForm() {
-		return {
-			name: nameEl.value.trim(),
-			title: titleEl.value.trim(),
-			company: companyEl.value.trim(),
-			email: emailEl.value.trim(),
-			phone: phoneEl.value.trim(),
-			address: addressEl.value.trim(),
-			bio: bioEl.value.trim(),
-			tags: tagsEl.value.split(',').map(t=>t.trim()).filter(Boolean),
-			imageData: currentImageData,
-			timestamp: new Date().toISOString()
-		};
-	}
-
-	function updateFormFromProfile(p) {
-		nameEl.value = p.name || '';
-		titleEl.value = p.title || '';
-		companyEl.value = p.company || '';
-		emailEl.value = p.email || '';
-		phoneEl.value = p.phone || '';
-		addressEl.value = p.address || '';
-		bioEl.value = p.bio || '';
-		tagsEl.value = (p.tags || []).join(', ');
-		if (p.imageData) {
-			currentImageData = p.imageData;
-			previewImg.src = p.imageData;
-			previewImg.style.display = 'block';
-			noImage.style.display = 'none';
-		} else {
-			currentImageData = null;
-			previewImg.style.display = 'none';
-			noImage.style.display = 'block';
-		}
-	}
-
-	function clearForm() {
-		nameEl.value = '';
-		titleEl.value = '';
-		companyEl.value = '';
-		emailEl.value = '';
-		phoneEl.value = '';
-		addressEl.value = '';
-		bioEl.value = '';
-		tagsEl.value = '';
-		currentImageData = null;
-		previewImg.style.display = 'none';
-		noImage.style.display = 'block';
-		setStatus('Form cleared.');
-	}
-
-	// handle image input
-	if (imageInput) {
-		imageInput.addEventListener('change', (e) => {
-			const f = e.target.files && e.target.files[0];
-			if (!f) {
-				currentImageData = null;
-				previewImg.style.display = 'none';
-				noImage.style.display = 'block';
-				return;
-			}
-			const reader = new FileReader();
-			reader.onload = () => {
-				currentImageData = reader.result;
-				previewImg.src = reader.result;
-				previewImg.style.display = 'block';
-				noImage.style.display = 'none';
-			};
-			reader.readAsDataURL(f);
-		});
-	}
+  // Only allow one NFC operation at a time (scan or write)
+  let nfcBusy = false;
+  let ndefWriteInstance = null;
+  let ndefScanInstance = null;
 
 	async function writeProfile() {
 		if (!('NDEFReader' in window)) {
@@ -521,6 +433,21 @@ textarea{
 			return;
 		}
 		nfcBusy = true;
+
+		// Cancel any previous scan before writing
+		if (ndefScanInstance && typeof ndefScanInstance.stop === 'function') {
+			try {
+				await ndefScanInstance.stop();
+			} catch (e) { /* ignore */ }
+			ndefScanInstance = null;
+		}
+		if (ndefWriteInstance && typeof ndefWriteInstance.stop === 'function') {
+			try {
+				await ndefWriteInstance.stop();
+			} catch (e) { /* ignore */ }
+			ndefWriteInstance = null;
+		}
+
 		const profile = getProfileFromForm();
 		if (!profile.name && !profile.email && !profile.phone) {
 			setStatus('Profile is empty — fill at least one field.');
@@ -530,10 +457,10 @@ textarea{
 
 		try {
 			const ndef = new NDEFReader();
-			setStatus('Touch an NFC tag to write...');
+			ndefWriteInstance = ndef;
+			setStatus('Touch an NFC tag to write... (Usually 1-3 seconds)');
 			const json = JSON.stringify(profile);
 
-			// Try writing as JSON MIME
 			try {
 				await ndef.write({
 					records: [{
@@ -544,6 +471,7 @@ textarea{
 				});
 				setStatus('Successfully wrote profile to tag as JSON.');
 				nfcBusy = false;
+				ndefWriteInstance = null;
 				return;
 			} catch (mimeError) {
 				// Try fallback to text record only
@@ -551,6 +479,7 @@ textarea{
 					await ndef.write({ records: [{ recordType: 'text', data: json }] });
 					setStatus('Wrote profile as text record only.');
 					nfcBusy = false;
+					ndefWriteInstance = null;
 					return;
 				} catch (textError) {
 					// Try fallback to plain text (not JSON string)
@@ -558,6 +487,7 @@ textarea{
 						await ndef.write({ records: [{ recordType: 'text', data: profile.name || profile.email || profile.phone || 'NFC Profile' }] });
 						setStatus('Wrote minimal profile as plain text.');
 						nfcBusy = false;
+						ndefWriteInstance = null;
 						return;
 					} catch (plainError) {
 						setStatus('Write failed: ' + (
@@ -566,12 +496,14 @@ textarea{
 								: JSON.stringify(plainError)
 						));
 						nfcBusy = false;
+						ndefWriteInstance = null;
 					}
 				}
 			}
 		} catch (err) {
 			setStatus('Failed to write due to IO error: ' + (err && err.message || err));
 			nfcBusy = false;
+			ndefWriteInstance = null;
 		}
 	}
 
@@ -586,8 +518,23 @@ textarea{
 		}
 		nfcBusy = true;
 
+		// Cancel any previous write before scanning
+		if (ndefWriteInstance && typeof ndefWriteInstance.stop === 'function') {
+			try {
+				await ndefWriteInstance.stop();
+			} catch (e) { /* ignore */ }
+			ndefWriteInstance = null;
+		}
+		if (ndefScanInstance && typeof ndefScanInstance.stop === 'function') {
+			try {
+				await ndefScanInstance.stop();
+			} catch (e) { /* ignore */ }
+			ndefScanInstance = null;
+		}
+
 		try {
 			const ndef = new NDEFReader();
+			ndefScanInstance = ndef;
 			setStatus('Ready to scan. Bring an NFC tag close to the device...');
 			await ndef.scan();
 
@@ -599,6 +546,7 @@ textarea{
 			ndef.onreading = (event) => {
 				setStatus('NFC tag detected.');
 				nfcBusy = false;
+				ndefScanInstance = null;
 				const message = event.message;
 				let parsed = null;
 				let rawText = null;
@@ -658,6 +606,7 @@ textarea{
 		} catch (err) {
 			setStatus('Failed to start scan: ' + (err && err.message || err));
 			nfcBusy = false;
+			ndefScanInstance = null;
 		}
 	}
 
