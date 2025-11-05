@@ -621,23 +621,4 @@ textarea{
 	} else {
 		setStatus('Web NFC API available.');
 	}
-
-	// show git instructions (unchanged)
-	function showGitInstructions() {
-		const deployUrl = 'https://nfc-profile-one.vercel.app/';
-		const cmds = [
-			'# initialize repo (if this folder is not yet a git repo)',
-			'git init',
-			'git add .',
-			'git commit -m "Add Web NFC profile app"',
-			'git branch -M main',
-			'git remote add origin https://github.com/ALOYO-BRENDA-OJERA/nfc-profile.git',
-			'git push -u origin main'
-		].join('\\n');
-
-		setStatus('To commit & push this project to GitHub:\\n' + cmds + '\\n\\nDeployed at: ' + deployUrl);
-		console.log('Git push instructions:\\n' + cmds + '\\nDeployed at: ' + deployUrl);
-	}
-
-	showGitInstructions();
 })();
