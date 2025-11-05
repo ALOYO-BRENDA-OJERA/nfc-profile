@@ -1,4 +1,12 @@
 (function () {
+	// Add viewport meta tag for mobile responsiveness
+	if (!document.querySelector('meta[name="viewport"]')) {
+		const meta = document.createElement('meta');
+		meta.name = 'viewport';
+		meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+		document.head.appendChild(meta);
+	}
+
 	// ensure a basic UI exists if index.html wasn't served / deployed
 	function ensureUI() {
 		// if UI already present do nothing
@@ -231,7 +239,7 @@ textarea{
     padding:20px;
   }
   .aside{
-    order:-1; /* Move profile image section to top */
+    order:-1;
     border-left:none;
     border-bottom:1px solid var(--border);
     padding:0 0 24px;
@@ -241,56 +249,55 @@ textarea{
     width:120px;
     height:120px;
   }
-  .preview-card{
-    margin-top:16px;
-    background:linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  .row{
+    grid-template-columns:1fr;
+    gap:12px;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   body{
-    background:#fff; /* Full white background on very small screens */
+    padding:4px;
   }
   #profile-app{
+    border-radius:0;
     box-shadow:none;
+    min-height:100vh;
+    width:100vw;
   }
   .header{
     text-align:center;
-    padding:16px;
+    padding:12px;
     flex-direction:column;
     align-items:center;
   }
   .logo{
-    width:64px;
-    height:64px;
+    width:48px;
+    height:48px;
   }
   .aside{
     padding:0 0 20px;
     margin:-8px 0 20px;
   }
   .avatar-box{
-    width:100px;
-    height:100px;
-    border-radius:16px;
+    width:90px;
+    height:90px;
+    border-radius:12px;
   }
   .action-buttons{
-    position:fixed;
-    bottom:0;
-    left:0;
-    right:0;
-    padding:12px 16px;
-    background:#fff;
-    box-shadow:0 -4px 12px rgba(0,0,0,0.05);
+    flex-direction:column;
+    gap:8px;
+    margin-top:16px;
   }
   .btn{
+    width:100%;
     height:48px;
     font-size:16px;
   }
   input, textarea{
-    font-size:16px; /* Prevent zoom on iOS */
+    font-size:16px;
   }
 }
-
 `;
 
 		const style = document.createElement('style');
