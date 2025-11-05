@@ -416,6 +416,8 @@ textarea{
 	const noImage = document.getElementById('noImage');
 
 	let currentImageData = null;
+	let scanActive = false;
+	let ndefScanInstance = null;
 
 	// Add toast functionality to setStatus
 	function setStatus(msg) {
@@ -511,6 +513,14 @@ textarea{
 			setStatus('Web NFC is not supported on this browser.');
 			return;
 		}
+		if (scanActive && ndefScanInstance && typeof ndefScanInstance.stop === 'function') {
+			try {
+				await ndefScanInstance.stop();
+				scanActive = false;
+			} catch (e) {
+				// ignore
+			}
+		}
 		const profile = getProfileFromForm();
 		if (!profile.name && !profile.email && !profile.phone) {
 			setStatus('Profile is empty — fill at least one field.');
@@ -531,10 +541,19 @@ textarea{
 				});
 				setStatus('Successfully wrote profile to tag.');
 			} catch (mimeError) {
+				// If push is cancelled due to a network push request, show a friendly message
+				if (mimeError && mimeError.message && mimeError.message.includes('push is cancelled')) {
+					setStatus('Write failed: Another NFC operation is active. Please close any open NFC scan and try again.');
+					return;
+				}
 				try {
 					await ndef.write({ records: [{ recordType: 'text', data: json }] });
 					setStatus('Wrote profile as text record (fallback).');
 				} catch (textError) {
+					if (textError && textError.message && textError.message.includes('push is cancelled')) {
+						setStatus('Write failed: Another NFC operation is active. Please close any open NFC scan and try again.');
+						return;
+					}
 					setStatus('Write failed: ' + (textError && textError.message || textError));
 				}
 			}
@@ -551,6 +570,8 @@ textarea{
 
 		try {
 			const ndef = new NDEFReader();
+			ndefScanInstance = ndef;
+			scanActive = true;
 			setStatus('Ready to scan. Bring an NFC tag close to the device...');
 			await ndef.scan();
 
@@ -559,12 +580,15 @@ textarea{
 			};
 
 			ndef.onreading = (event) => {
+				scanActive = false;
 				setStatus('NFC tag detected.');
 				const message = event.message;
 				let parsed = null;
+				let rawText = null;
 
 				for (const record of message.records) {
 					try {
+						// Try to decode as JSON from MIME or text
 						if (record.recordType === 'mime' && record.mediaType === 'application/json') {
 							const textDecoder = new TextDecoder();
 							const data = record.data instanceof ArrayBuffer ? textDecoder.decode(record.data) : textDecoder.decode(new Uint8Array(record.data));
@@ -573,11 +597,20 @@ textarea{
 						} else if (record.recordType === 'text') {
 							const textDecoder = new TextDecoder(record.encoding || 'utf-8');
 							const data = textDecoder.decode(record.data);
-							parsed = JSON.parse(data);
-							break;
+							try {
+								parsed = JSON.parse(data);
+								break;
+							} catch {
+								rawText = data;
+							}
 						} else if (record.recordType === 'unknown' && record.data) {
 							const data = new TextDecoder().decode(record.data);
-							try { parsed = JSON.parse(data); break; } catch {}
+							try {
+								parsed = JSON.parse(data);
+								break;
+							} catch {
+								rawText = data;
+							}
 						}
 					} catch (e) {
 						// ignore and continue
@@ -587,11 +620,21 @@ textarea{
 				if (parsed) {
 					updateFormFromProfile(parsed);
 					setStatus('Profile loaded from tag.');
+				} else if (rawText) {
+					setStatus('Tag contains text (not JSON):\n' + rawText);
 				} else {
-					setStatus('No JSON profile found on this tag. Raw records:\n' + JSON.stringify(message.records.map(r => ({ recordType: r.recordType, mediaType: r.mediaType || null })), null, 2));
+					setStatus('No JSON or text profile found on this tag. Raw records:\n' +
+						JSON.stringify(message.records.map(r => ({
+							type: r.recordType,
+							mediaType: r.mediaType,
+							encoding: r.encoding,
+							lang: r.lang
+						})), null, 2)
+					);
 				}
 			};
 		} catch (err) {
+			scanActive = false;
 			setStatus('Failed to start scan: ' + (err && err.message || err));
 		}
 	}
