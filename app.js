@@ -530,40 +530,43 @@ textarea{
 		try {
 			const ndef = new NDEFReader();
 			setStatus('Touch an NFC tag to write...');
-			let writeError = null;
-			// If the profile is valid JSON, write as MIME and text
 			const json = JSON.stringify(profile);
+
+			// Some tags require a single record, so try one-by-one
 			try {
 				await ndef.write({
-					records: [
-						{
-							recordType: 'mime',
-							mediaType: 'application/json',
-							data: new TextEncoder().encode(json)
-						},
-						{
-							recordType: 'text',
-							data: json
-					 }
-					]
+					records: [{
+						recordType: 'mime',
+						mediaType: 'application/json',
+						data: new TextEncoder().encode(json)
+					}]
 				});
-				setStatus('Successfully wrote profile to tag (as both JSON and text).');
+				setStatus('Successfully wrote profile to tag as JSON.');
 				return;
 			} catch (mimeError) {
-				writeError = mimeError;
+				// Try fallback to text record only
+				try {
+					await ndef.write({ records: [{ recordType: 'text', data: json }] });
+					setStatus('Wrote profile as text record only.');
+					return;
+				} catch (textError) {
+					// Try fallback to plain text (not JSON string)
+					try {
+						await ndef.write({ records: [{ recordType: 'text', data: profile.name || profile.email || profile.phone || 'NFC Profile' }] });
+						setStatus('Wrote minimal profile as plain text.');
+						return;
+					} catch (plainError) {
+						// Show the actual error
+						setStatus('Write failed: ' + (
+							plainError && plainError.message
+								? plainError.message
+								: JSON.stringify(plainError)
+						));
+					}
+				}
 			}
-			// Try fallback to text record only
-			try {
-				await ndef.write({ records: [{ recordType: 'text', data: json }] });
-				setStatus('Wrote profile as text record only.');
-				return;
-			} catch (textError) {
-				writeError = textError;
-			}
-			// If both fail, show the actual error
-			setStatus('Write failed: ' + (writeError && writeError.message ? writeError.message : JSON.stringify(writeError)));
 		} catch (err) {
-			setStatus('Error while writing: ' + (err && err.message || err));
+			setStatus('Failed to write due to IO error: ' + (err && err.message || err));
 		}
 	}
 
