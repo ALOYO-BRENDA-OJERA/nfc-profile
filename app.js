@@ -1,68 +1,196 @@
 (function () {
 	// ensure a basic UI exists if index.html wasn't served / deployed
 	function ensureUI() {
+		// if UI already present do nothing
 		if (document.getElementById('profile-app')) return;
 
+		// improved, colorful and responsive styles
 		const css = `
-body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f5f7fb; margin:0; padding:24px}
-#profile-app{max-width:920px;margin:0 auto;background:#fff;padding:28px;border-radius:12px;box-shadow:0 10px 30px rgba(11,15,30,0.08)}
-#profile-app header{display:flex;align-items:center;gap:16px}
-#profile-app .grid{display:grid;grid-template-columns:1fr 320px;gap:20px;margin-top:20px}
-#profile-app input, #profile-app textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef6;box-sizing:border-box}
-#profile-app .buttons{display:flex;gap:10px;margin-top:16px}
-#profile-app button{padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
-#profile-app pre{background:#0f1720;color:#cbd5e1;padding:12px;border-radius:8px;max-height:220px;overflow:auto;white-space:pre-wrap}
+:root{
+  --bg-start:#eef2ff;
+  --bg-end:#f0fdf4;
+  --card:#ffffff;
+  --primary:#2563eb;
+  --accent:#06b6d4;
+  --muted:#64748b;
+  --border:#e6eef6;
+  --glass: rgba(255,255,255,0.6);
+  --shadow: 0 10px 30px rgba(16,24,40,0.08);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  background: linear-gradient(135deg,var(--bg-start) 0%, var(--bg-end) 100%);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  padding:28px;
+}
+#profile-app{
+  max-width:1100px; margin:0 auto; background:var(--card);
+  border-radius:18px; box-shadow:var(--shadow); overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.header{
+  display:flex; gap:18px; align-items:center; padding:28px 32px 12px 32px;
+}
+.logo{
+  width:72px; height:72px; border-radius:16px;
+  background: linear-gradient(135deg,var(--primary), var(--accent));
+  color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.18);
+}
+.header h1{margin:0; font-size:20px; color:var(--primary)}
+.header p{margin:2px 0 0 0; color:var(--muted); font-size:13px}
+
+/* content grid */
+.content{
+  display:grid; grid-template-columns: 1fr 360px; gap:28px; padding:20px 32px 32px 32px;
+}
+.section-left{display:flex; flex-direction:column; gap:12px}
+.row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+label{display:block; font-size:13px; color:var(--muted)}
+input[type="text"], input[type="email"], textarea{
+  width:100%; padding:12px; border-radius:10px; border:1px solid var(--border);
+  font-size:15px; background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(250,250,250,0.9));
+}
+textarea{min-height:98px; resize:vertical}
+.input-small{padding:10px}
+
+/* right column */
+.aside{border-left:1px solid #f1f5f9; padding-left:22px; display:flex; flex-direction:column; gap:16px; align-items:center}
+.avatar-box{width:120px; height:120px; border-radius:16px; overflow:hidden; background:#f8fafc; display:flex; align-items:center; justify-content:center; border:1px solid var(--border)}
+.avatar-box img{width:100%; height:100%; object-fit:cover}
+.file-input{width:100%}
+
+/* actions */
+.actions{display:flex; gap:12px; margin-top:8px}
+.btn{
+  cursor:pointer; border:none; padding:11px 14px; border-radius:10px; font-weight:600; font-size:15px;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.btn-primary{background:var(--primary); color:#fff}
+.btn-accent{background:var(--accent); color:#fff}
+.btn-muted{background:#f3f4f6; color:#0f1720}
+
+/* live preview box */
+.preview{
+  width:100%; background:linear-gradient(180deg,#fbfdff,#f8fafc); border-radius:10px; padding:12px; border:1px solid #eef2f7;
+  color:#0f1720; font-size:14px;
+}
+
+/* status pre (hidden on small screens) */
+#status{background:#0f1720; color:#cbd5e1; padding:12px; border-radius:8px; max-height:160px; overflow:auto; white-space:pre-wrap; width:100%}
+
+/* toast for nicer status messages */
+.toast{
+  position:fixed; right:20px; bottom:20px; background:#111827; color:#f1f5f9; padding:12px 16px; border-radius:12px;
+  box-shadow:0 8px 30px rgba(2,6,23,0.6); font-size:14px; z-index:9999; display:flex; gap:12px; align-items:center;
+}
+
+/* responsive */
+@media (max-width:900px){
+  .content{grid-template-columns:1fr 300px}
+}
+@media (max-width:720px){
+  #profile-app{border-radius:12px}
+  .content{grid-template-columns:1fr; padding:16px}
+  .aside{border-left:none; border-top:1px solid #f1f5f9; padding-left:0; padding-top:18px; margin-top:6px; align-items:flex-start}
+  .header{padding:20px}
+  #status{display:none}
+}
 `;
 
 		const style = document.createElement('style');
 		style.textContent = css;
 		document.head.appendChild(style);
 
+		// improved markup (keeps same element ids expected by script)
 		const container = document.createElement('main');
 		container.id = 'profile-app';
 		container.innerHTML = `
-<header><div style="width:56px;height:56px;border-radius:12px;background:#0b5fff;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">N</div><div><h1 style="margin:0;font-size:20px">NFC Profile — Read & Write</h1><div style="color:#6b7280;font-size:13px">Create and store person profiles on NFC tags. Images embedded as base64 in the tag JSON.</div></div></header>
-<div class="grid">
-<section>
-	<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-		<label><div style="font-size:12px;color:#6b7280">Full name</div><input id="name" placeholder="Jane Doe"/></label>
-		<label><div style="font-size:12px;color:#6b7280">Title</div><input id="title" placeholder="Product Designer"/></label>
-	</div>
-	<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-		<label><div style="font-size:12px;color:#6b7280">Company</div><input id="company" placeholder="Acme Corp."/></label>
-		<label><div style="font-size:12px;color:#6b7280">Email</div><input id="email" type="email" placeholder="jane@company.com"/></label>
-	</div>
-	<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-		<label><div style="font-size:12px;color:#6b7280">Phone</div><input id="phone" placeholder="+1 555 5555"/></label>
-		<label><div style="font-size:12px;color:#6b7280">Address</div><input id="address" placeholder="City, Country"/></label>
-	</div>
-	<label style="display:block;margin-top:12px"><div style="font-size:12px;color:#6b7280">Bio</div><textarea id="bio" style="min-height:100px"></textarea></label>
-	<label style="display:block;margin-top:12px"><div style="font-size:12px;color:#6b7280">Tags (comma separated)</div><input id="tags" placeholder="designer, product, mentor"/></label>
-	<div class="buttons">
-		<button id="writeBtn" style="background:#0b5fff;color:#fff">Write to tag</button>
-		<button id="readBtn" style="background:#0aa89e;color:#fff">Read from tag</button>
-		<button id="clearBtn" style="background:#f3f4f6;color:#111827">Clear</button>
-	</div>
-</section>
-<aside style="border-left:1px solid #eef2f7;padding-left:18px">
-	<div style="display:flex;gap:12px;align-items:center">
-		<div style="width:92px;height:92px;border-radius:12px;overflow:hidden;background:#f8fafc;display:flex;align-items:center;justify-content:center;border:1px solid #e6eef6">
-			<img id="previewImg" alt="preview" style="width:100%;height:100%;object-fit:cover;display:none"/>
-			<div id="noImage" style="color:#9ca3af">No image</div>
-		</div>
-		<div style="flex:1">
-			<div style="font-size:12px;color:#6b7280">Profile image</div>
-			<input id="imageInput" type="file" accept="image/*" style="margin-top:8px"/>
-			<div style="font-size:12px;color:#9ca3af;margin-top:8px">Images are embedded as base64 in the NFC JSON. Keep images small (recommended &lt; 200KB).</div>
-		</div>
-	</div>
-	<div style="margin-top:18px">
-		<h3 style="margin:0;font-size:14px">Status</h3>
-		<pre id="status">Ready.</pre>
-	</div>
-</aside>
-</div>
+  <div class="header">
+    <div class="logo">N</div>
+    <div>
+      <h1>NFC Profile — Read & Write</h1>
+      <p>Create and store person profiles on NFC tags. Images embedded as base64 in the tag JSON.</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <section class="section-left">
+      <div class="row">
+        <label>Full name
+          <input id="name" type="text" placeholder="Jane Doe" />
+        </label>
+        <label>Title
+          <input id="title" type="text" placeholder="Product Designer" />
+        </label>
+      </div>
+
+      <div class="row">
+        <label>Company
+          <input id="company" type="text" placeholder="Acme Corp." />
+        </label>
+        <label>Email
+          <input id="email" type="email" placeholder="jane@company.com" />
+        </label>
+      </div>
+
+      <div class="row">
+        <label>Phone
+          <input id="phone" type="text" placeholder="+1 555 5555" />
+        </label>
+        <label>Address
+          <input id="address" type="text" placeholder="City, Country" />
+        </label>
+      </div>
+
+      <label>Bio
+        <textarea id="bio" placeholder="Short bio about the person"></textarea>
+      </label>
+
+      <label>Tags (comma separated)
+        <input id="tags" type="text" placeholder="designer, mentor, product" />
+      </label>
+
+      <div style="display:flex; gap:12px; align-items:center; margin-top:6px;">
+        <button id="writeBtn" class="btn btn-primary">Write to tag</button>
+        <button id="readBtn" class="btn btn-accent">Read from tag</button>
+        <button id="clearBtn" class="btn btn-muted">Clear</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div style="font-size:13px; color:var(--muted); margin-bottom:8px;">Status</div>
+        <pre id="status">Ready.</pre>
+      </div>
+    </section>
+
+    <aside class="aside">
+      <div style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px">
+        <div class="avatar-box">
+          <img id="previewImg" alt="preview" style="display:none" />
+          <div id="noImage" style="color:#9ca3af">No image</div>
+        </div>
+
+        <div style="width:100%">
+          <div style="font-size:13px; color:var(--muted); margin-bottom:8px;">Profile image</div>
+          <input id="imageInput" class="file-input" type="file" accept="image/*" />
+          <div style="font-size:12px; color:#9ca3af; margin-top:8px;">Images are embedded as base64 in the NFC JSON. Keep images small (recommended &lt; 200KB).</div>
+        </div>
+      </div>
+
+      <div style="width:100%;">
+        <div style="font-size:13px; color:var(--muted); margin-bottom:8px;">Live Preview</div>
+        <div class="preview" id="livePreview">
+          <div style="font-weight:700; font-size:16px;" id="lp-name">Jane Doe</div>
+          <div style="color:var(--muted)" id="lp-title">Product Designer • Acme Corp.</div>
+          <div style="margin-top:8px; color:var(--muted)" id="lp-contact">jane@company.com • +1 555 5555</div>
+        </div>
+      </div>
+    </aside>
+  </div>
 `;
+
 		document.body.innerHTML = '';
 		document.body.appendChild(container);
 	}
