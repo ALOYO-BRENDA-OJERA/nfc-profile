@@ -419,6 +419,9 @@ textarea{
 	let scanActive = false;
 	let ndefScanInstance = null;
 
+	// Only allow one NFC operation at a time (scan or write)
+	let nfcBusy = false;
+
 	// Add toast functionality to setStatus
 	function setStatus(msg) {
 		const time = new Date().toLocaleTimeString();
@@ -513,17 +516,15 @@ textarea{
 			setStatus('Web NFC is not supported on this browser.');
 			return;
 		}
-		if (scanActive && ndefScanInstance && typeof ndefScanInstance.stop === 'function') {
-			try {
-				await ndefScanInstance.stop();
-				scanActive = false;
-			} catch (e) {
-				// ignore
-			}
+		if (nfcBusy) {
+			setStatus('NFC is busy. Please wait for any previous scan or write to finish.');
+			return;
 		}
+		nfcBusy = true;
 		const profile = getProfileFromForm();
 		if (!profile.name && !profile.email && !profile.phone) {
 			setStatus('Profile is empty — fill at least one field.');
+			nfcBusy = false;
 			return;
 		}
 
@@ -532,7 +533,7 @@ textarea{
 			setStatus('Touch an NFC tag to write...');
 			const json = JSON.stringify(profile);
 
-			// Some tags require a single record, so try one-by-one
+			// Try writing as JSON MIME
 			try {
 				await ndef.write({
 					records: [{
@@ -542,31 +543,35 @@ textarea{
 					}]
 				});
 				setStatus('Successfully wrote profile to tag as JSON.');
+				nfcBusy = false;
 				return;
 			} catch (mimeError) {
 				// Try fallback to text record only
 				try {
 					await ndef.write({ records: [{ recordType: 'text', data: json }] });
 					setStatus('Wrote profile as text record only.');
+					nfcBusy = false;
 					return;
 				} catch (textError) {
 					// Try fallback to plain text (not JSON string)
 					try {
 						await ndef.write({ records: [{ recordType: 'text', data: profile.name || profile.email || profile.phone || 'NFC Profile' }] });
 						setStatus('Wrote minimal profile as plain text.');
+						nfcBusy = false;
 						return;
 					} catch (plainError) {
-						// Show the actual error
 						setStatus('Write failed: ' + (
 							plainError && plainError.message
 								? plainError.message
 								: JSON.stringify(plainError)
 						));
+						nfcBusy = false;
 					}
 				}
 			}
 		} catch (err) {
 			setStatus('Failed to write due to IO error: ' + (err && err.message || err));
+			nfcBusy = false;
 		}
 	}
 
@@ -575,21 +580,25 @@ textarea{
 			setStatus('Web NFC is not supported on this browser.');
 			return;
 		}
+		if (nfcBusy) {
+			setStatus('NFC is busy. Please wait for any previous scan or write to finish.');
+			return;
+		}
+		nfcBusy = true;
 
 		try {
 			const ndef = new NDEFReader();
-			ndefScanInstance = ndef;
-			scanActive = true;
 			setStatus('Ready to scan. Bring an NFC tag close to the device...');
 			await ndef.scan();
 
 			ndef.onreadingerror = () => {
 				setStatus('Cannot read data from the NFC tag. Try again.');
+				nfcBusy = false;
 			};
 
 			ndef.onreading = (event) => {
-				scanActive = false;
 				setStatus('NFC tag detected.');
+				nfcBusy = false;
 				const message = event.message;
 				let parsed = null;
 				let rawText = null;
@@ -647,8 +656,8 @@ textarea{
 				}
 			};
 		} catch (err) {
-			scanActive = false;
 			setStatus('Failed to start scan: ' + (err && err.message || err));
+			nfcBusy = false;
 		}
 	}
 
